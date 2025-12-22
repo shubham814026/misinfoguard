@@ -93,25 +93,64 @@ async def analyze_image(file: UploadFile = File(...)):
                 )
             
             # Extract text from image
-            extracted_text = await ocr_service.extract_text(file_path)
+            ocr_result = await ocr_service.extract_text(file_path)
             
-            if not extracted_text or len(extracted_text.strip()) < 10:
+            # Handle invalid/garbage images
+            if ocr_result['status'] == 'invalid':
                 return {
                     "success": False,
-                    "message": "No readable text found in the image",
-                    "extracted_text": extracted_text,
+                    "message": ocr_result['message'],
+                    "extracted_text": "",
                     "claims": []
                 }
             
-            # Extract claims using NLP
-            claims = await nlp_service.extract_claims(extracted_text)
+            # Handle OCR errors
+            if ocr_result['status'] == 'error':
+                return {
+                    "success": False,
+                    "message": ocr_result['message'],
+                    "extracted_text": "",
+                    "claims": []
+                }
             
-            return {
+            extracted_text = ocr_result['text']
+            news_items = ocr_result.get('news_items', [extracted_text])
+            
+            # Analyze each news item separately if multiple detected
+            all_claims = []
+            news_analyses = []
+            
+            for idx, news_text in enumerate(news_items):
+                # Extract claims for this news item
+                claims = await nlp_service.extract_claims(news_text)
+                detected_lang = nlp_service.detect_language(news_text)
+                
+                news_analyses.append({
+                    "news_number": idx + 1,
+                    "text": news_text,
+                    "claims": claims,
+                    "language": detected_lang
+                })
+                all_claims.extend(claims)
+            
+            # Build response
+            response = {
                 "success": True,
                 "extracted_text": extracted_text,
-                "claims": claims,
-                "language": nlp_service.detect_language(extracted_text)
+                "total_claims": len(all_claims)
             }
+            
+            # If multiple news items detected, provide separate analyses
+            if len(news_items) > 1:
+                response["message"] = ocr_result['message']
+                response["news_count"] = len(news_items)
+                response["news_analyses"] = news_analyses
+            else:
+                # Single news item - keep original format
+                response["claims"] = all_claims
+                response["language"] = news_analyses[0]["language"] if news_analyses else "en"
+            
+            return response
             
         finally:
             # Clean up file

@@ -1,0 +1,28 @@
+services:
+  # Python Backend Service
+  - type: web
+    name: misinfoguard-api
+    env: docker
+    dockerfilePath: ./python-service/Dockerfile
+    dockerContext: ./python-service
+    plan: free  # Change to 'starter' for $7/month if free doesn't work
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONUNBUFFERED
+        value: 1
+
+  # Frontend Service  
+  - type: web
+    name: misinfoguard-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    region: oregon
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false
+        # Set this to your backend URL after deployment

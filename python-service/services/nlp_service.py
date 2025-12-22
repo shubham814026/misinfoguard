@@ -9,36 +9,75 @@ logger = logging.getLogger(__name__)
 
 
 class NLPService:
-    """Service for NLP analysis and claim extraction"""
+    """Service for NLP analysis and claim extraction with multilingual support"""
     
     def __init__(self):
         try:
-            # Load spaCy model
-            self.nlp = spacy.load("en_core_web_sm")
+            # Load multilingual spaCy model
+            # This supports 100+ languages
+            try:
+                self.nlp = spacy.load("xx_ent_wiki_sm")  # Multilingual model
+                # Add sentencizer for sentence boundary detection
+                if 'sentencizer' not in self.nlp.pipe_names:
+                    self.nlp.add_pipe('sentencizer')
+                logger.info("Loaded multilingual spaCy model: xx_ent_wiki_sm")
+            except OSError:
+                # Fallback to English model if multilingual not available
+                logger.warning("Multilingual model not found, falling back to English model")
+                try:
+                    self.nlp = spacy.load("en_core_web_sm")
+                    if 'sentencizer' not in self.nlp.pipe_names:
+                        self.nlp.add_pipe('sentencizer')
+                    logger.info("Loaded English spaCy model: en_core_web_sm")
+                except OSError:
+                    raise OSError(
+                        "No spaCy models found. Please install: "
+                        "python -m spacy download xx_ent_wiki_sm OR python -m spacy download en_core_web_sm"
+                    )
+            
+            self.supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ru', 'zh', 'ja', 'ar', 'hi']
         except Exception as e:
             logger.error(f"Failed to load spaCy model: {str(e)}")
             raise
     
     async def extract_claims(self, text: str) -> List[Dict]:
         """
-        Extract factual claims from text
+        Extract factual claims from text (supports multiple languages)
+        Groups related sentences about the same topic into single claims
         
         Args:
-            text: Input text
+            text: Input text in any supported language
             
         Returns:
-            List of claims with metadata
+            List of claims with metadata including detected language
         """
         try:
-            if not text or len(text.strip()) < 10:
+            # Allow shorter text - minimum 5 words
+            if not text or len(text.strip().split()) < 5:
                 return []
             
-            # Process text with spaCy
+            # Detect language
+            detected_lang = self.detect_language(text)
+            logger.info(f"Detected language: {detected_lang}")
+            
+            # For short text (< 50 words), treat entire text as single claim
+            word_count = len(text.split())
+            if word_count < 50:
+                return [{
+                    "text": text.strip(),
+                    "language": detected_lang,
+                    "entities": [],
+                    "sentiment": self._analyze_sentiment(text),
+                    "confidence": 0.75
+                }]
+            
+            # For longer text, extract key claims but group related ones
             doc = self.nlp(text)
             
-            claims = []
+            all_sentences = []
+            factual_sentences = []
             
-            # Extract sentences
+            # First pass: identify factual sentences
             for sent in doc.sents:
                 sentence_text = sent.text.strip()
                 
@@ -46,52 +85,137 @@ class NLPService:
                 if len(sentence_text.split()) < 5:
                     continue
                 
+                all_sentences.append(sentence_text)
+                
                 # Check if sentence contains factual indicators
-                if self._is_factual_claim(sentence_text):
-                    claim = {
+                if self._is_factual_claim(sentence_text, detected_lang):
+                    factual_sentences.append({
                         "text": sentence_text,
                         "entities": self._extract_entities(sent),
                         "sentiment": self._analyze_sentiment(sentence_text),
                         "confidence": self._calculate_confidence(sent)
-                    }
-                    claims.append(claim)
+                    })
             
-            # If no claims found but text is substantial, treat entire text as claim
-            if not claims and len(text.split()) > 10:
-                claims.append({
-                    "text": text[:500],  # Limit length
-                    "entities": self._extract_entities(doc),
-                    "sentiment": self._analyze_sentiment(text),
-                    "confidence": 0.7
-                })
+            # If we have factual sentences, combine related ones about same topic
+            if factual_sentences:
+                # For articles about single topic (most news), return combined claim
+                if len(factual_sentences) <= 3 or self._is_single_topic(factual_sentences):
+                    # Combine all factual sentences into one claim
+                    combined_text = " ".join([s["text"] for s in factual_sentences])
+                    
+                    # Merge entities
+                    all_entities = []
+                    seen_entities = set()
+                    for s in factual_sentences:
+                        for ent in s["entities"]:
+                            ent_key = (ent["text"], ent["type"])
+                            if ent_key not in seen_entities:
+                                all_entities.append(ent)
+                                seen_entities.add(ent_key)
+                    
+                    return [{
+                        "text": combined_text[:1000],  # Limit length
+                        "language": detected_lang,
+                        "entities": all_entities,
+                        "sentiment": self._analyze_sentiment(combined_text),
+                        "confidence": sum(s["confidence"] for s in factual_sentences) / len(factual_sentences)
+                    }]
+                else:
+                    # Multiple distinct topics - return top 3 most important claims
+                    factual_sentences.sort(key=lambda x: x["confidence"], reverse=True)
+                    return [{
+                        "text": s["text"],
+                        "language": detected_lang,
+                        "entities": s["entities"],
+                        "sentiment": s["sentiment"],
+                        "confidence": s["confidence"]
+                    } for s in factual_sentences[:3]]
             
-            return claims
+            # No factual claims found - treat entire text as single claim
+            return [{
+                "text": text[:1000],
+                "language": detected_lang,
+                "entities": self._extract_entities(doc),
+                "sentiment": self._analyze_sentiment(text),
+                "confidence": 0.6
+            }]
             
         except Exception as e:
             logger.error(f"Claim extraction failed: {str(e)}")
+            detected_lang = self.detect_language(text) if text else "en"
             return [{
-                "text": text[:500],
+                "text": text[:1000] if text else "",
+                "language": detected_lang,
                 "entities": [],
                 "sentiment": "neutral",
                 "confidence": 0.5
             }]
     
-    def _is_factual_claim(self, text: str) -> bool:
-        """Determine if a sentence contains a factual claim"""
-        # Factual indicators
-        factual_verbs = ['is', 'are', 'was', 'were', 'has', 'have', 'will', 'states', 'shows', 'proves', 'reveals']
+    def _is_single_topic(self, sentences: List[Dict]) -> bool:
+        """Check if sentences are about the same topic using entity overlap"""
+        if len(sentences) <= 1:
+            return True
         
-        # Numbers and dates indicate factual content
+        # Extract all entity texts
+        entity_sets = []
+        for sent in sentences:
+            entities = {ent["text"].lower() for ent in sent["entities"]}
+            entity_sets.append(entities)
+        
+        if not any(entity_sets):
+            return True  # No entities to compare
+        
+        # Calculate average overlap
+        total_overlap = 0
+        comparisons = 0
+        
+        for i in range(len(entity_sets)):
+            for j in range(i + 1, len(entity_sets)):
+                if entity_sets[i] and entity_sets[j]:
+                    intersection = len(entity_sets[i] & entity_sets[j])
+                    union = len(entity_sets[i] | entity_sets[j])
+                    overlap = intersection / union if union > 0 else 0
+                    total_overlap += overlap
+                    comparisons += 1
+        
+        avg_overlap = total_overlap / comparisons if comparisons > 0 else 0
+        
+        # If average overlap > 30%, consider same topic
+        return avg_overlap > 0.3
+    
+    def _is_factual_claim(self, text: str, language: str = 'en') -> bool:
+        """Determine if a sentence contains a factual claim (language-agnostic)"""
+        # Universal factual indicators that work across languages
+        
+        # Numbers and dates indicate factual content (universal)
         has_numbers = bool(re.search(r'\d+', text))
         
-        # Check for factual verbs
+        # Language-specific factual verbs
+        factual_verbs = {
+            'en': ['is', 'are', 'was', 'were', 'has', 'have', 'will', 'states', 'shows', 'proves', 'reveals'],
+            'es': ['es', 'son', 'fue', 'fueron', 'tiene', 'tienen', 'será', 'muestra', 'prueba', 'revela'],
+            'fr': ['est', 'sont', 'était', 'étaient', 'a', 'ont', 'sera', 'montre', 'prouve', 'révèle'],
+            'de': ['ist', 'sind', 'war', 'waren', 'hat', 'haben', 'wird', 'zeigt', 'beweist'],
+            'hi': ['है', 'हैं', 'था', 'थे', 'दिखाता', 'साबित'],
+            'ar': ['هو', 'هي', 'كان', 'كانت', 'يظهر', 'يثبت'],
+        }
+        
+        # Check for factual verbs in detected language (or default to universal check)
         text_lower = text.lower()
-        has_factual_verb = any(verb in text_lower for verb in factual_verbs)
+        verbs = factual_verbs.get(language, factual_verbs['en'])
+        has_factual_verb = any(verb in text_lower for verb in verbs)
         
-        # Avoid questions and opinions
-        is_question = text.strip().endswith('?')
-        is_opinion = any(word in text_lower for word in ['think', 'believe', 'feel', 'opinion', 'maybe', 'perhaps'])
+        # Avoid questions (universal)
+        is_question = text.strip().endswith('?') or text.strip().endswith('؟')  # Arabic question mark
         
+        # Opinion indicators (multilingual)
+        opinion_words = ['think', 'believe', 'feel', 'opinion', 'maybe', 'perhaps',
+                        'creo', 'pienso', 'opino', 'quizás',  # Spanish
+                        'pense', 'crois', 'opinion', 'peut-être',  # French
+                        'denke', 'glaube', 'meinung', 'vielleicht']  # German
+        is_opinion = any(word in text_lower for word in opinion_words)
+        
+        # If has numbers or factual structure, likely a claim
         return (has_numbers or has_factual_verb) and not is_question and not is_opinion
     
     def _extract_entities(self, doc) -> List[Dict]:

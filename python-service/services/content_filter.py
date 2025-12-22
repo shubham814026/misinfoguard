@@ -43,7 +43,7 @@ class ContentFilter:
             
             # Basic skin tone detection (simplified heuristic)
             # In production, use proper NSFW detection model
-            skin_percentage = self._detect_skin_percentage(img_array)
+            skin_percentage = self._detect_skin_tone(img_array)
             
             # If > 60% skin-colored pixels, might be inappropriate
             if skin_percentage > 0.6:
@@ -56,4 +56,54 @@ class ContentFilter:
         except Exception as e:
             logger.error(f"NSFW check failed: {str(e)}")
             return False
+    
+    def _detect_skin_tone(self, img_array: np.ndarray) -> float:
+        """Detect percentage of skin-tone pixels (simple heuristic)"""
+        try:
+            if len(img_array.shape) != 3:
+                return 0.0
+            
+            # Convert to RGB if needed
+            if img_array.shape[2] == 4:  # RGBA
+                img_array = img_array[:, :, :3]
+            
+            # Simple skin tone detection in RGB
+            # Skin tone ranges (approximate)
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+            
+            # Skin tone heuristics
+            skin_mask = (
+                (r > 95) & (g > 40) & (b > 20) &
+                (r > g) & (r > b) &
+                (abs(r - g) > 15)
+            )
+            
+            skin_percentage = np.sum(skin_mask) / skin_mask.size
+            return skin_percentage
+            
+        except:
+            return 0.0
+    
+    def contains_inappropriate_text(self, text: str) -> bool:
+        """
+        Check if text contains inappropriate content
+        
+        Args:
+            text: Text to check
+            
+        Returns:
+            True if inappropriate content detected
+        """
+        if not text:
+            return False
+        
+        text_lower = text.lower()
+        
+        # Check for NSFW keywords
+        for keyword in self.nsfw_keywords:
+            if keyword in text_lower:
+                logger.warning(f"Inappropriate keyword detected: {keyword}")
+                return True
+        
+        return False
     
