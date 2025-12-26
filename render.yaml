@@ -1,13 +1,33 @@
 services:
-  # Python Backend Service
+  # Node.js Backend Service (API Gateway)
   - type: web
-    name: misinfoguard-api
+    name: misinfoguard-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: PYTHON_SERVICE_URL
+        fromService:
+          type: web
+          name: misinfoguard-python
+          property: hostport
+      - key: MONGODB_URI
+        sync: false  # You'll set this manually to your MongoDB Atlas connection string
+
+  # Python Service (OCR, NLP, Fact-checking)
+  - type: web
+    name: misinfoguard-python
     env: docker
     dockerfilePath: ./python-service/Dockerfile
     dockerContext: ./python-service
-    plan: free  # Change to 'starter' for $7/month if free doesn't work
+    plan: free
     region: oregon
-    healthCheckPath: /api/health
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: 8000
@@ -24,5 +44,7 @@ services:
     region: oregon
     envVars:
       - key: REACT_APP_API_URL
-        sync: false
-        # Set this to your backend URL after deployment
+        fromService:
+          type: web
+          name: misinfoguard-backend
+          property: host

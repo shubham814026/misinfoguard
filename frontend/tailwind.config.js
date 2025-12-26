@@ -6,59 +6,74 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        crypto: {
-          50: '#fdf8f3',
-          100: '#f9ede0',
-          200: '#f3d9c0',
-          300: '#e9bf96',
-          400: '#dea169',
-          500: '#d4864b',
-          600: '#c06d3f',
-          700: '#a05636',
-          800: '#824632',
-          900: '#6b3b2b',
-          950: '#3a1d15',
+        // Primary brand - deep navy blue (trust & reliability)
+        navy: {
+          50: '#f0f4f8',
+          100: '#d9e2ec',
+          200: '#bcccdc',
+          300: '#9fb3c8',
+          400: '#829ab1',
+          500: '#627d98',
+          600: '#486581',
+          700: '#334e68',
+          800: '#243b53',
+          900: '#102a43',
+          950: '#0a1929',
         },
-        brown: {
-          50: '#faf8f5',
-          100: '#f0ebe3',
-          200: '#e1d5c5',
-          300: '#cbb89e',
-          400: '#b69879',
-          500: '#a6825f',
-          600: '#997053',
-          700: '#7f5b45',
-          800: '#6a4c3c',
-          900: '#584133',
-          950: '#2f221a',
-        }
+        // Verified/Real - soft green
+        verified: {
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d',
+          800: '#166534',
+          900: '#14532d',
+        },
+        // Fake/Misleading - muted amber/red
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+        },
+        danger: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
       },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'crypto-gradient': 'linear-gradient(135deg, #3a1d15 0%, #6b3b2b 50%, #a05636 100%)',
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       animation: {
-        'float': 'float 3s ease-in-out infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
-        'slide-up': 'slideUp 0.5s ease-out',
-        'fade-in': 'fadeIn 0.6s ease-out',
+        'fade-in': 'fadeIn 0.4s ease-out',
+        'slide-up': 'slideUp 0.4s ease-out',
       },
       keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-20px)' },
-        },
-        glow: {
-          '0%': { boxShadow: '0 0 5px rgba(212, 134, 75, 0.5), 0 0 10px rgba(212, 134, 75, 0.3)' },
-          '100%': { boxShadow: '0 0 20px rgba(212, 134, 75, 0.8), 0 0 30px rgba(212, 134, 75, 0.4)' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(100px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

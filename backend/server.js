@@ -4,14 +4,23 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const uploadRoutes = require('./routes/upload');
 const analyzeRoutes = require('./routes/analyze');
 const healthRoutes = require('./routes/health');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/misinfoguard';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Security middleware
 app.use(helmet());
@@ -51,6 +60,8 @@ if (process.env.NODE_ENV !== 'production') {
 app.use('/api/health', healthRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/analyze', analyzeRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/feedback', statsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -61,7 +72,9 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/api/health',
             upload: '/api/upload',
-            analyze: '/api/analyze'
+            analyze: '/api/analyze',
+            stats: '/api/stats',
+            feedback: '/api/feedback'
         }
     });
 });

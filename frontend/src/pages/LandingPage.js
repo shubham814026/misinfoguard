@@ -1,290 +1,208 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FaShieldAlt, FaSearch, FaBrain, FaCheckCircle } from 'react-icons/fa';
-import { MdSecurity } from 'react-icons/md';
-import { BiTargetLock } from 'react-icons/bi';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalAnalyses: 0,
+    accuracyRate: 90,
+    helpfulFeedback: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const features = [
-    {
-      icon: <FaSearch className="text-4xl" />,
-      title: "Deep Web Scanning",
-      description: "Scans the entire internet for fact-checking like Comet browser technology"
-    },
-    {
-      icon: <FaBrain className="text-4xl" />,
-      title: "Advanced AI Analysis",
-      description: "OCR + NLP powered analysis with 90%+ accuracy guarantee"
-    },
-    {
-      icon: <FaShieldAlt className="text-4xl" />,
-      title: "Content Safety",
-      description: "Automatically rejects inappropriate and sensitive content"
-    },
-    {
-      icon: <BiTargetLock className="text-4xl" />,
-      title: "Binary Verdict",
-      description: "Clear results - no neutral answers, just truth or falsehood"
-    },
-    {
-      icon: <FaCheckCircle className="text-4xl" />,
-      title: "Trusted Sources",
-      description: "Links to verified news sites and fact-checking organizations"
-    },
-    {
-      icon: <MdSecurity className="text-4xl" />,
-      title: "No Login Required",
-      description: "Instant analysis without registration or personal data"
-    }
-  ];
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/stats`);
+        if (response.data && response.data.success) {
+          setStats({
+            totalAnalyses: response.data.totalAnalyses || 0,
+            accuracyRate: response.data.accuracyRate || 90,
+            helpfulFeedback: response.data.helpfulFeedback || 0
+          });
+        }
+      } catch (error) {
+        console.log('Stats API not available, using defaults');
+        // Use default stats if API is unavailable
+        setStats({
+          totalAnalyses: 0,
+          accuracyRate: 90,
+          helpfulFeedback: 0
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex items-center justify-center px-4">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            className="absolute top-20 left-10 w-72 h-72 bg-crypto-600 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-            animate={{
-              x: [0, 100, 0],
-              y: [0, 50, 0],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute bottom-20 right-10 w-96 h-96 bg-brown-600 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-            animate={{
-              x: [0, -100, 0],
-              y: [0, -50, 0],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
-          {/* Logo/Icon */}
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.8, type: "spring" }}
-            className="mb-8 inline-block"
-          >
-            <div className="p-6 bg-gradient-to-br from-crypto-600 to-brown-700 rounded-3xl shadow-2xl animate-glow">
-              <FaShieldAlt className="text-7xl text-crypto-100" />
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="border-b border-slate-200 bg-white">
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-navy-900 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z" clipRule="evenodd" />
+              </svg>
             </div>
-          </motion.div>
+            <span className="text-xl font-semibold text-navy-900">MIS InfoGuard</span>
+          </div>
+        </div>
+      </header>
 
-          {/* Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-6xl md:text-8xl font-bold mb-6 text-gradient"
-          >
-            MisinfoGuard
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-crypto-200 mb-4 max-w-3xl mx-auto"
-          >
-            Your AI-Powered Fake Information Detector
-          </motion.p>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="text-lg text-crypto-300 mb-12 max-w-2xl mx-auto"
-          >
-            Upload images or paste text to verify facts instantly with 90%+ accuracy.
-            Powered by advanced OCR, NLP, and real-time web fact-checking.
-          </motion.p>
-
-          {/* CTA Button */}
-          <motion.button
+      {/* Hero Section */}
+      <main className="max-w-5xl mx-auto px-6">
+        <section className="py-16 md:py-24 text-center">
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/analyze')}
-            className="px-12 py-5 bg-gradient-to-r from-crypto-600 to-brown-600 text-white text-xl font-bold rounded-full shadow-2xl hover:shadow-crypto-500/50 transition-all duration-300 hover-lift"
+            transition={{ duration: 0.5 }}
           >
-            Start Analyzing Now
-          </motion.button>
+            {/* Accuracy Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-verified-50 border border-verified-200 rounded-full mb-8">
+              <div className="w-2 h-2 bg-verified-500 rounded-full"></div>
+              <span className="text-verified-700 font-medium text-sm">
+                {stats.accuracyRate}% Accuracy Rate
+              </span>
+            </div>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 1 }}
-            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
-          >
-            {[
-              { value: "90%+", label: "Accuracy Rate" },
-              { value: "0s", label: "Setup Time" },
-              { value: "∞", label: "Free Checks" }
-            ].map((stat, index) => (
-              <div key={index} className="glass p-6 rounded-2xl hover-lift">
-                <div className="text-4xl font-bold text-crypto-400 mb-2">{stat.value}</div>
-                <div className="text-crypto-200">{stat.label}</div>
+            {/* Main Headline */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-navy-900 mb-6 leading-tight">
+              Verify news before <br className="hidden md:block" />
+              you share it
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
+              Check if information is real, misleading, or fake in seconds. 
+              Trusted by thousands to make informed decisions.
+            </p>
+
+            {/* CTA Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/analyze')}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-navy-900 text-white text-lg font-semibold rounded-xl hover:bg-navy-800 transition-colors shadow-lg shadow-navy-900/20"
+            >
+              Check News
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </motion.button>
+          </motion.div>
+        </section>
+
+        {/* Stats Section - Only show if there's data */}
+        {!loading && stats.totalAnalyses > 0 && (
+          <section className="py-12 border-t border-slate-200">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            >
+              {/* Total Analyses */}
+              <div className="text-center p-6">
+                <div className="text-4xl md:text-5xl font-bold text-navy-900 mb-2">
+                  {stats.totalAnalyses.toLocaleString()}
+                </div>
+                <div className="text-slate-600">
+                  Analyses performed
+                </div>
               </div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-4 relative">
-        <div className="max-w-7xl mx-auto">
+              {/* Accuracy Rate */}
+              {stats.accuracyRate > 0 && (
+                <div className="text-center p-6 border-y md:border-y-0 md:border-x border-slate-200">
+                  <div className="text-4xl md:text-5xl font-bold text-verified-600 mb-2">
+                    {stats.accuracyRate}%
+                  </div>
+                  <div className="text-slate-600">
+                    Accuracy rate
+                  </div>
+                </div>
+              )}
+
+              {/* User Feedback */}
+              {stats.helpfulFeedback > 0 && (
+                <div className="text-center p-6">
+                  <div className="text-4xl md:text-5xl font-bold text-navy-900 mb-2">
+                    {stats.helpfulFeedback}%
+                  </div>
+                  <div className="text-slate-600">
+                    Found results helpful
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </section>
+        )}
+
+        {/* Trust Indicators */}
+        <section className="py-16 border-t border-slate-200">
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
-            <h2 className="text-5xl font-bold text-gradient mb-4">
-              Powerful Features
-            </h2>
-            <p className="text-xl text-crypto-300">
-              Enterprise-grade misinformation detection at your fingertips
-            </p>
+            <div className="card p-6">
+              <div className="w-10 h-10 bg-navy-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-navy-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-navy-900 mb-2">Instant Results</h3>
+              <p className="text-slate-600">Get verification results in seconds, not hours.</p>
+            </div>
+
+            <div className="card p-6">
+              <div className="w-10 h-10 bg-navy-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-navy-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-navy-900 mb-2">Verified Sources</h3>
+              <p className="text-slate-600">Cross-referenced with trusted fact-checking organizations.</p>
+            </div>
+
+            <div className="card p-6">
+              <div className="w-10 h-10 bg-navy-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-navy-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-navy-900 mb-2">No Account Required</h3>
+              <p className="text-slate-600">Start checking immediately. No sign-up or personal data needed.</p>
+            </div>
           </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -10 }}
-                className="glass p-8 rounded-2xl hover-lift"
-              >
-                <div className="text-crypto-400 mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-2xl font-bold text-crypto-200 mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-crypto-300">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="py-20 px-4 bg-crypto-950/50">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-5xl font-bold text-gradient mb-4">
-              How It Works
-            </h2>
-            <p className="text-xl text-crypto-300">
-              Three simple steps to verify any claim
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              {
-                step: "01",
-                title: "Upload or Paste",
-                description: "Upload an image with text or paste the claim you want to verify"
-              },
-              {
-                step: "02",
-                title: "AI Analysis",
-                description: "Our AI extracts claims using OCR and NLP, then searches the web for evidence"
-              },
-              {
-                step: "03",
-                title: "Get Results",
-                description: "Receive a clear verdict with sources and explanations in seconds"
-              }
-            ].map((step, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                viewport={{ once: true }}
-                className="relative"
-              >
-                <div className="text-8xl font-bold text-crypto-800 absolute -top-8 -left-4">
-                  {step.step}
-                </div>
-                <div className="glass p-8 rounded-2xl relative z-10 hover-lift">
-                  <h3 className="text-2xl font-bold text-crypto-200 mb-4">
-                    {step.title}
-                  </h3>
-                  <p className="text-crypto-300">
-                    {step.description}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="max-w-4xl mx-auto text-center glass p-12 rounded-3xl"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-gradient mb-6">
-            Ready to Fight Misinformation?
-          </h2>
-          <p className="text-xl text-crypto-300 mb-8">
-            Join the fight against fake news. Start verifying claims right now.
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/analyze')}
-            className="px-12 py-5 bg-gradient-to-r from-crypto-600 to-brown-600 text-white text-xl font-bold rounded-full shadow-2xl hover:shadow-crypto-500/50 transition-all duration-300"
-          >
-            Get Started - It's Free
-          </motion.button>
-        </motion.div>
-      </section>
+        </section>
+      </main>
 
       {/* Footer */}
-      <footer className="py-8 px-4 border-t border-crypto-800">
-        <div className="max-w-6xl mx-auto text-center text-crypto-400">
-          <p>© 2025 MisinfoGuard. Fighting misinformation with AI.</p>
+      <footer className="border-t border-slate-200 mt-8">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-slate-600">
+              <div className="w-6 h-6 bg-navy-900 rounded flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="font-medium">MIS InfoGuard</span>
+            </div>
+            <p className="text-slate-500 text-sm">
+              © 2025 MIS InfoGuard. Helping you make informed decisions.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

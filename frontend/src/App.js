@@ -7,26 +7,28 @@ import AnalyzePage from './pages/AnalyzePage';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-crypto-950 via-brown-900 to-crypto-900">
+      <div className="min-h-screen bg-slate-50">
         <Toaster
-          position="top-right"
+          position="top-center"
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#3a1d15',
-              color: '#f3d9c0',
-              border: '1px solid #c06d3f',
+              background: '#ffffff',
+              color: '#1e293b',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
             },
             success: {
               iconTheme: {
-                primary: '#d4864b',
-                secondary: '#f3d9c0',
+                primary: '#22c55e',
+                secondary: '#ffffff',
               },
             },
             error: {
               iconTheme: {
-                primary: '#dc2626',
-                secondary: '#f3d9c0',
+                primary: '#ef4444',
+                secondary: '#ffffff',
               },
             },
           }}

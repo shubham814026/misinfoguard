@@ -4,8 +4,18 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const Stats = require('../models/Stats');
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+
+// Increment analysis count in MongoDB
+const incrementAnalysisCount = async () => {
+    try {
+        await Stats.incrementAnalyses();
+    } catch (error) {
+        console.error('Error incrementing analysis count:', error);
+    }
+};
 
 // Analyze image endpoint
 router.post('/image', async (req, res) => {
@@ -55,12 +65,18 @@ router.post('/image', async (req, res) => {
                 }
             );
             
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
             res.json({
                 success: true,
                 analysis: analysisResult,
                 factCheck: factCheckResponse.data.results
             });
         } else {
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
             res.json({
                 success: true,
                 analysis: analysisResult,
@@ -86,6 +102,14 @@ router.post('/image', async (req, res) => {
             });
         }
         
+        // Handle timeout errors
+        if (error.code === 'ECONNABORTED') {
+            return res.status(504).json({
+                success: false,
+                error: 'Analysis timed out. Please try with a smaller image.'
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: error.message || 'Analysis failed'
@@ -102,6 +126,14 @@ router.post('/text', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Text is required'
+            });
+        }
+
+        // Limit text length to prevent abuse
+        if (text.length > 10000) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text is too long. Maximum 10,000 characters allowed.'
             });
         }
         
@@ -128,12 +160,18 @@ router.post('/text', async (req, res) => {
                 }
             );
             
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
             res.json({
                 success: true,
                 analysis: analysisResult,
                 factCheck: factCheckResponse.data.results
             });
         } else {
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
             res.json({
                 success: true,
                 analysis: analysisResult,
