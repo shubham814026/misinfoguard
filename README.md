@@ -11,11 +11,14 @@ A production-ready, enterprise-grade misinformation detection system built with 
 - 🔍 **Deep Web Scanning** - Scans the internet for fact-checking like Comet browser
 - 🧠 **Advanced AI Analysis** - OCR + NLP with 90%+ accuracy
 - 🛡️ **Content Safety** - Auto-rejects inappropriate/sensitive content
+- 📰 **Smart Content Detection** - Automatically detects if content is news or non-news (memes, personal photos, ads)
 - ⚡ **Binary Verdict** - Clear results: Likely True or Likely False (no neutral)
 - 📚 **Trusted Sources** - Links to verified news sites and fact-checkers
+- 🌐 **Multilingual Support** - Supports English, Hindi, Spanish, French, German and more
 - 🚀 **No Login Required** - Instant analysis without registration
-- 🎨 **Beautiful UI** - Brown crypto-style design with advanced animations
+- 🎨 **Beautiful UI** - Modern design with advanced animations
 - 🐳 **Docker Ready** - Complete containerized deployment
+- 📊 **MongoDB Stats** - Track analysis counts and usage statistics
 
 ## 🏗️ Architecture
 
@@ -24,6 +27,7 @@ MisinfoGuard/
 ├── frontend/          # React + Tailwind CSS
 ├── backend/           # Node.js + Express API
 ├── python-service/    # Python FastAPI for OCR/NLP/Fact-checking
+├── mongodb/           # Database for statistics
 └── docker-compose.yml # Multi-container orchestration
 ```
 
@@ -43,11 +47,17 @@ MisinfoGuard/
 
 **Python Service:**
 - FastAPI + Uvicorn
-- Tesseract OCR
-- spaCy NLP
+- Tesseract OCR (Multilingual)
+- spaCy NLP (xx_ent_wiki_sm multilingual model)
 - Google Search API
 - Google Fact Check API
+- News Content Classifier (ML-based)
 - OpenCV, Pillow, PyTesseract
+- LangDetect, TextBlob
+
+**Database:**
+- MongoDB (Statistics & Analytics)
+- Mongoose ODM
 
 **Infrastructure:**
 - Docker & Docker Compose
@@ -240,15 +250,20 @@ REACT_APP_API_URL=http://localhost:5000
 
 1. **Upload/Input**: User uploads image or pastes text
 2. **Content Filter**: Checks for inappropriate content (rejects if found)
-3. **OCR Extraction**: Extracts text from images using Tesseract
-4. **NLP Analysis**: Extracts factual claims using spaCy
-5. **Fact Checking**:
+3. **OCR Extraction**: Extracts text from images using Tesseract (multilingual)
+4. **News Content Classification**: 
+   - Detects if content is actual news or non-news
+   - Identifies content types: news, memes, personal photos, ads, quotes
+   - Only proceeds with fact-checking for news content
+5. **NLP Analysis**: Extracts factual claims using spaCy multilingual model
+6. **Fact Checking**:
    - Searches Google Custom Search for evidence
    - Queries Google Fact Check API
    - Analyzes source credibility
    - Checks for misinformation red flags
-6. **Verdict Generation**:
+7. **Verdict Generation**:
    - Binary decision: LIKELY TRUE or LIKELY FALSE
+   - Or "Not News Content" for non-news items
    - Confidence score (0-100%)
    - Human-friendly explanation
    - Links to trusted sources
@@ -279,6 +294,8 @@ REACT_APP_API_URL=http://localhost:5000
 - **Red Flag Detection**: Identifies misinformation patterns
 - **Entity Recognition**: Extracts people, organizations, dates
 - **Sentiment Analysis**: Understands claim context
+- **News Content Classification**: Detects non-news content (memes, personal photos, ads)
+- **Multilingual NLP**: Supports 10+ languages for claim extraction
 
 ## 🐛 Troubleshooting
 
@@ -318,59 +335,81 @@ npm start
 ```
 MisinfoGuard/
 │
-├── frontend/
+├── frontend/                      # React Frontend
 │   ├── public/
 │   │   └── index.html
 │   ├── src/
+│   │   ├── components/           # Reusable UI components
 │   │   ├── pages/
 │   │   │   ├── LandingPage.js    # Landing page
-│   │   │   └── AnalyzePage.js    # Analysis interface
+│   │   │   └── AnalyzePage.js    # Analysis interface + results display
+│   │   ├── animations/           # Animation configurations
 │   │   ├── App.js
 │   │   ├── index.js
 │   │   └── index.css
 │   ├── package.json
 │   ├── tailwind.config.js
+│   ├── postcss.config.js
 │   └── Dockerfile
 │
-├── backend/
+├── backend/                       # Node.js Backend
 │   ├── routes/
-│   │   ├── health.js             # Health check
-│   │   ├── upload.js             # File upload
-│   │   └── analyze.js            # Analysis endpoints
+│   │   ├── health.js             # Health check endpoint
+│   │   ├── upload.js             # File upload handler
+│   │   ├── analyze.js            # Analysis endpoints (image/text)
+│   │   └── stats.js              # Statistics endpoint
+│   ├── models/
+│   │   └── Stats.js              # MongoDB stats model
+│   ├── data/                     # Data storage
+│   ├── uploads/                  # Temporary file uploads
 │   ├── server.js
 │   ├── package.json
 │   └── Dockerfile
 │
-├── python-service/
+├── python-service/                # Python AI Service
 │   ├── services/
-│   │   ├── ocr_service.py        # Tesseract OCR
-│   │   ├── nlp_service.py        # spaCy NLP
-│   │   ├── fact_checker.py       # Google APIs
-│   │   └── content_filter.py     # NSFW filter
+│   │   ├── ocr_service.py        # Tesseract OCR (multilingual)
+│   │   ├── nlp_service.py        # spaCy NLP + NewsContentClassifier
+│   │   ├── fact_checker.py       # Google APIs fact-checking
+│   │   └── content_filter.py     # NSFW/inappropriate content filter
 │   ├── utils/
-│   │   └── file_handler.py
-│   ├── main.py
+│   │   ├── __init__.py
+│   │   └── file_handler.py       # File upload handling
+│   ├── uploads/                  # Temporary file uploads
+│   ├── main.py                   # FastAPI application
 │   ├── requirements.txt
+│   ├── MULTILINGUAL_SETUP.md     # Multilingual setup guide
 │   └── Dockerfile
 │
-├── docker-compose.yml
+├── uploads/                       # Shared uploads directory
+├── docker-compose.yml             # Docker orchestration
+├── fly.toml                       # Fly.io deployment config
+├── render.yaml                    # Render deployment config
+├── API.md                         # API documentation
+├── GOOGLE_API_SETUP.md           # Google API setup guide
+├── setup-env.ps1                  # Windows environment setup
+├── setup-env.sh                   # Linux/Mac environment setup
 ├── .gitignore
-├── setup-env.ps1
-├── setup-env.sh
 └── README.md
 ```
 
 ## 🔮 Future Enhancements
 
-- [ ] Multi-language support
+- [x] Multi-language support (English, Hindi, Spanish, French, German, Arabic, Chinese)
+- [x] News vs Non-News content classification
+- [x] MongoDB integration for statistics
 - [ ] Video analysis
 - [ ] Browser extension
 - [ ] User accounts & history
 - [ ] Advanced ML models (BERT, GPT)
+- [ ] Reverse image search for manipulation detection
+- [ ] Deepfake detection
+- [ ] URL analysis (paste news URLs)
 - [ ] Claim database
 - [ ] API rate limiting per user
 - [ ] Export reports (PDF)
 - [ ] Social media integration
+- [ ] Mobile app (React Native)
 
 ## 🤝 Contributing
 
