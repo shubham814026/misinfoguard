@@ -10,7 +10,7 @@ import logging
 from services.ocr_service import OCRService
 from services.nlp_service import NLPService
 from services.fact_checker import FactChecker
-from services.content_filter import ContentFilter
+from services.content_filter import ContentFilter, ImageContentClassifier
 from utils.file_handler import FileHandler
 
 # Load environment variables
@@ -41,6 +41,7 @@ ocr_service = OCRService()
 nlp_service = NLPService()
 fact_checker = FactChecker()
 content_filter = ContentFilter()
+image_classifier = ImageContentClassifier()
 file_handler = FileHandler()
 
 
@@ -71,6 +72,7 @@ async def health_check():
 async def analyze_image(file: UploadFile = File(...)):
     """
     Analyze image for misinformation
+    - First classifies image type (photo vs document/screenshot)
     - Extracts text using OCR
     - Performs NLP analysis
     - Checks for NSFW content
@@ -92,17 +94,55 @@ async def analyze_image(file: UploadFile = File(...)):
                     detail="Content rejected: Inappropriate or sensitive material detected"
                 )
             
-            # Extract text from image
+            # STEP 1: Classify image type BEFORE OCR
+            # This detects photos (animals, people, objects) vs documents/screenshots
+            image_classification = image_classifier.classify_image(file_path)
+            logger.info(f"Image classification: {image_classification}")
+            
+            # If image is clearly a photo without text, return early
+            if (image_classification['image_type'] == 'photo' and 
+                not image_classification['is_likely_news'] and 
+                image_classification['confidence'] >= 0.7):
+                
+                logger.info(f"Image detected as photo without news content")
+                return {
+                    "success": True,
+                    "is_news_content": False,
+                    "content_type": "photo_no_text",
+                    "image_type": image_classification['image_type'],
+                    "message": "This appears to be a photograph without news or text content. Please upload a screenshot of news, a news article image, or text content to fact-check.",
+                    "extracted_text": "",
+                    "claims": [],
+                    "classification_confidence": image_classification['confidence'],
+                    "classification_reason": image_classification['reason']
+                }
+            
+            # STEP 2: Extract text from image using OCR
             ocr_result = await ocr_service.extract_text(file_path)
             
-            # Handle invalid/garbage images
+            # Handle invalid/garbage images - no readable text
             if ocr_result['status'] == 'invalid':
-                return {
-                    "success": False,
-                    "message": ocr_result['message'],
-                    "extracted_text": "",
-                    "claims": []
-                }
+                # Check if it was classified as a photo
+                if image_classification['image_type'] == 'photo':
+                    return {
+                        "success": True,
+                        "is_news_content": False,
+                        "content_type": "photo_no_text",
+                        "image_type": "photo",
+                        "message": "This appears to be a photograph without any readable text. Please upload news articles, screenshots of news, or text content to fact-check.",
+                        "extracted_text": "",
+                        "claims": [],
+                        "classification_reason": "No readable text found in photograph"
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "is_news_content": False,
+                        "content_type": "no_text_content",
+                        "message": ocr_result['message'],
+                        "extracted_text": "",
+                        "claims": []
+                    }
             
             # Handle OCR errors
             if ocr_result['status'] == 'error':
@@ -116,8 +156,7 @@ async def analyze_image(file: UploadFile = File(...)):
             extracted_text = ocr_result['text']
             news_items = ocr_result.get('news_items', [extracted_text])
             
-            # First, classify if this is actually news content
-            # Use the first news item for classification
+            # STEP 3: Classify if the extracted TEXT is news content
             classification = nlp_service.classify_content(extracted_text)
             
             # If not news content, return appropriate response

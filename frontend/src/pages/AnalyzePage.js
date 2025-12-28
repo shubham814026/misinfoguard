@@ -353,34 +353,70 @@ const LoadingSpinner = () => (
 );
 
 const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
-  const { factCheck = [], isNewsContent, contentType, message: notNewsMessage } = results;
+  const { factCheck = [], isNewsContent, contentType, message: notNewsMessage, analysis } = results;
 
   // Check if content is not news
   if (isNewsContent === false) {
+    // Determine icon and colors based on content type
+    const isPhoto = contentType === 'photo_no_text' || contentType === 'photo';
+    const iconBg = isPhoto ? 'bg-purple-100' : 'bg-blue-100';
+    const iconColor = isPhoto ? 'text-purple-600' : 'text-blue-600';
+    const cardBg = isPhoto ? 'bg-purple-50' : 'bg-blue-50';
+    const cardBorder = isPhoto ? 'border-purple-200' : 'border-blue-200';
+    const titleColor = isPhoto ? 'text-purple-700' : 'text-blue-700';
+    
+    // Get appropriate title
+    const getTitle = () => {
+      if (isPhoto) return 'Photo Detected - No News Content';
+      if (contentType === 'meme_entertainment') return 'Meme/Entertainment Content';
+      if (contentType === 'advertisement') return 'Advertisement Detected';
+      if (contentType === 'no_text_content') return 'No Readable Text Found';
+      return 'Not News Content';
+    };
+    
+    // Get appropriate icon
+    const getIcon = () => {
+      if (isPhoto) {
+        return (
+          <svg className={`w-8 h-8 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      }
+      return (
+        <svg className={`w-8 h-8 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    };
+
     return (
       <div className="space-y-6">
         {/* Not News Content Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-blue-50 border-blue-200 border-2 rounded-2xl p-6"
+          className={`${cardBg} ${cardBorder} border-2 rounded-2xl p-6`}
         >
           <div className="flex items-start gap-4">
-            <div className="bg-blue-100 rounded-full p-3 flex-shrink-0">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className={`${iconBg} rounded-full p-3 flex-shrink-0`}>
+              {getIcon()}
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-blue-700 mb-1">
-                Not News Content
+              <h2 className={`text-2xl font-bold ${titleColor} mb-1`}>
+                {getTitle()}
               </h2>
               <div className="text-slate-600 mb-3">
-                Content Type: <span className="font-semibold capitalize">{contentType?.replace(/_/g, ' ') || 'Unknown'}</span>
+                Detected Type: <span className="font-semibold capitalize">{contentType?.replace(/_/g, ' ') || 'Unknown'}</span>
               </div>
               <p className="text-slate-700 leading-relaxed">
                 {notNewsMessage || "This doesn't appear to be news or a verifiable claim."}
               </p>
+              {analysis?.classification_reason && (
+                <p className="text-slate-500 text-sm mt-2 italic">
+                  {analysis.classification_reason}
+                </p>
+              )}
             </div>
           </div>
         </motion.div>
@@ -424,7 +460,7 @@ const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
         </motion.div>
 
         {/* Extracted Text if available */}
-        {results.analysis?.extracted_text && (
+        {(results.analysis?.extracted_text || results.extracted_text) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -435,7 +471,7 @@ const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
               Extracted Text
             </h3>
             <p className="text-slate-700 whitespace-pre-wrap text-sm">
-              {results.analysis.extracted_text}
+              {results.analysis?.extracted_text || results.extracted_text}
             </p>
           </motion.div>
         )}

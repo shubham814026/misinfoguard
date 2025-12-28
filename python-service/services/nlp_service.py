@@ -57,29 +57,45 @@ class NewsContentClassifier:
             r'@\w+',  # Twitter/social media handles (news often has these)
         ]
         
-        # Non-news content indicators - ONLY STRONG INDICATORS
-        # We want to be very careful not to reject actual news
+        # Non-news content indicators - Expanded list
         self.non_news_indicators = [
-            # Personal/casual content - STRONG indicators only
-            'selfie', 'my photo', 'pic of me', 'thats me',
-            # Memes/entertainment - STRONG indicators
-            'lmao', 'rofl', 'this meme', 'funny meme',
-            # Commercial content - STRONG indicators
+            # Personal/casual content
+            'selfie', 'my photo', 'pic of me', 'thats me', 'photo of me',
+            # Memes/entertainment
+            'lmao', 'rofl', 'this meme', 'funny meme', 'lol',
+            # Commercial content
             'buy now', 'order now', 'limited offer', 'shop now', 'dm to order',
-            # Food/lifestyle - STRONG indicators  
-            'my recipe', 'homemade recipe', 'cooking tutorial',
-            # Greetings - STRONG indicators
+            'add to cart', 'checkout', 'free shipping',
+            # Food/lifestyle
+            'my recipe', 'homemade recipe', 'cooking tutorial', 'delicious',
+            # Greetings
             'good morning everyone', 'good night everyone', 'happy birthday to',
+            # Photography/Portfolio - NEW
+            'photography', 'portfolio', 'gallery', 'photoshoot', 'photographer',
+            'portrait', 'landscape photography', 'photo gallery',
+            # UI/Menu elements - NEW
+            'home', 'about us', 'contact us', 'login', 'sign up', 'menu',
+            'settings', 'profile', 'dashboard', 'search',
+            # Social media UI - NEW
+            'followers', 'following', 'likes', 'comments', 'share', 'retweet',
+            'view profile', 'edit profile', 'notifications',
         ]
         
-        # Minimum thresholds - VERY LENIENT
-        self.min_word_count = 10  # Lowered from 15
+        # Patterns that indicate non-news (UI elements, menus, lists)
+        self.non_news_patterns = [
+            r'\|.*\|.*\|',  # Multiple pipe separators (menus)
+            r'>.*>.*>',  # Multiple arrow separators (breadcrumbs)
+            r'^\s*[\w\s]+\s*\|\s*[\w\s]+\s*\|',  # Menu-like structure
+            r'(home|about|contact|login|sign\s*up)\s*[|>]',  # Navigation elements
+        ]
+        
+        # Minimum thresholds
+        self.min_word_count = 10
     
     def classify_content(self, text: str, entities: List[Dict] = None) -> Tuple[bool, str, float]:
         """
         Classify if content is news/verifiable claim or non-news content.
-        IMPORTANT: We are LENIENT - prefer to analyze content rather than reject it.
-        Only reject if we're very confident it's not news.
+        Uses multiple checks: coherence, news indicators, non-news patterns.
         
         Returns:
             Tuple of (is_news, content_type, confidence)
@@ -94,35 +110,120 @@ class NewsContentClassifier:
         words = text.split()
         word_count = len(words)
         
-        # LENIENT APPROACH: If text has 20+ words, assume it's worth analyzing
-        # unless there are STRONG non-news indicators
+        # STEP 1: Check if text is coherent (actual sentences vs random words)
+        coherence_score = self._calculate_coherence(text)
+        if coherence_score < 0.3:
+            logger.info(f"Low coherence detected: {coherence_score}")
+            return False, "incoherent_content", 0.8
         
-        # First check for STRONG non-news indicators
+        # STEP 2: Check for non-news patterns (UI elements, menus, etc.)
+        if self._has_non_news_patterns(text_lower):
+            logger.info("Non-news patterns detected (UI/menu elements)")
+            return False, "ui_elements", 0.85
+        
+        # STEP 3: Check for strong non-news indicators
         non_news_score = self._calculate_non_news_score(text_lower)
-        
-        # Only reject if VERY confident it's non-news (score > 0.7)
-        if non_news_score > 0.7:
+        if non_news_score > 0.5:  # Lowered threshold
             content_type = self._identify_non_news_type(text_lower)
+            logger.info(f"Non-news content detected: {content_type}, score: {non_news_score}")
             return False, content_type, non_news_score
         
-        # If we have substantial text (20+ words), treat as news
-        if word_count >= 20:
-            return True, "news_content", 0.7
-        
-        # For shorter text, check news indicators
+        # STEP 4: Check for news indicators
         news_score = self._calculate_news_score(text_lower, entities or [], word_count)
         
-        # LENIENT thresholds
-        if news_score >= 0.15:  # Very low threshold
-            return True, "news_content", max(0.5, news_score)
-        elif word_count >= 10:
-            # Even with low news score, 10+ words is worth analyzing
+        # STEP 5: Decision logic
+        # High news score = definitely news
+        if news_score >= 0.3:
+            return True, "news_content", max(0.6, news_score)
+        
+        # Moderate coherence + some news indicators = possible news
+        if coherence_score >= 0.5 and news_score >= 0.15:
+            return True, "possible_news", 0.5
+        
+        # Long text with good coherence = worth checking
+        if word_count >= 30 and coherence_score >= 0.5:
+            return True, "news_content", 0.5
+        
+        # Short text with low news score = likely not news
+        if word_count < 20 and news_score < 0.15:
+            return False, "non_news_content", 0.6
+        
+        # Default: if coherent enough, try to analyze
+        if coherence_score >= 0.4:
             return True, "possible_news", 0.4
-        elif word_count < 10:
-            return False, "insufficient_content", 0.6
-        else:
-            # Default to treating as news - better to analyze than reject
-            return True, "possible_news", 0.4
+        
+        return False, "non_news_content", 0.5
+    
+    def _calculate_coherence(self, text: str) -> float:
+        """
+        Calculate text coherence score (0-1).
+        Checks if text has actual sentence structure vs random words.
+        """
+        try:
+            # Check 1: Sentence structure (periods, commas, proper punctuation)
+            sentences = re.split(r'[.!?]', text)
+            valid_sentences = [s.strip() for s in sentences if len(s.strip().split()) >= 3]
+            sentence_ratio = len(valid_sentences) / max(1, len(sentences))
+            
+            # Check 2: Word length distribution (real text has varied word lengths)
+            words = text.split()
+            if len(words) < 3:
+                return 0.2
+            
+            word_lengths = [len(w) for w in words]
+            avg_word_length = sum(word_lengths) / len(word_lengths)
+            
+            # Very short average = likely abbreviations/UI
+            # Very long average = likely gibberish
+            length_score = 1.0 if 3 <= avg_word_length <= 8 else 0.5
+            
+            # Check 3: Common English words presence
+            common_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'have', 'has', 
+                           'had', 'be', 'been', 'being', 'do', 'does', 'did', 'will',
+                           'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+                           'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from',
+                           'that', 'this', 'it', 'and', 'or', 'but', 'if', 'as', 'so'}
+            text_lower = text.lower()
+            text_words = set(text_lower.split())
+            common_word_count = len(common_words & text_words)
+            common_word_ratio = common_word_count / max(1, len(words))
+            
+            # Check 4: Special character ratio (high = UI/code/garbage)
+            special_chars = sum(1 for c in text if c in '|><[]{}()@#$%^&*=+')
+            special_ratio = special_chars / max(1, len(text))
+            special_score = 1.0 if special_ratio < 0.05 else 0.3
+            
+            # Combine scores
+            coherence = (sentence_ratio * 0.3 + 
+                        length_score * 0.2 + 
+                        min(1.0, common_word_ratio * 5) * 0.3 + 
+                        special_score * 0.2)
+            
+            return min(1.0, coherence)
+            
+        except Exception as e:
+            logger.error(f"Coherence calculation failed: {e}")
+            return 0.5
+    
+    def _has_non_news_patterns(self, text_lower: str) -> bool:
+        """Check if text contains non-news patterns (UI elements, menus, etc.)"""
+        for pattern in self.non_news_patterns:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                return True
+        
+        # Check for menu-like structure: word | word | word
+        pipe_count = text_lower.count('|')
+        word_count = len(text_lower.split())
+        if pipe_count >= 2 and pipe_count >= word_count / 4:
+            return True
+        
+        # Check for list of single words (no sentence structure)
+        lines = text_lower.split('\n')
+        single_word_lines = sum(1 for line in lines if len(line.strip().split()) <= 2 and line.strip())
+        if single_word_lines >= 3 and single_word_lines >= len(lines) / 2:
+            return True
+        
+        return False
     
     def _calculate_news_score(self, text_lower: str, entities: List[Dict], word_count: int) -> float:
         """Calculate how likely this is news content"""
@@ -157,20 +258,21 @@ class NewsContentClassifier:
     def _calculate_non_news_score(self, text_lower: str) -> float:
         """
         Calculate how likely this is non-news content.
-        CONSERVATIVE: Only give high score for STRONG indicators.
         """
         score = 0.0
         
-        # Check for STRONG non-news indicators only
+        # Check for non-news indicators
         indicator_matches = sum(1 for ind in self.non_news_indicators if ind in text_lower)
         
-        # Need at least 2 strong indicators to consider as non-news
-        if indicator_matches >= 2:
-            score += min(0.5, indicator_matches * 0.2)
+        # More aggressive scoring
+        if indicator_matches >= 3:
+            score += min(0.6, indicator_matches * 0.15)
+        elif indicator_matches >= 2:
+            score += 0.35
         elif indicator_matches == 1:
-            score += 0.15
+            score += 0.2
         
-        # Check for excessive emojis (5+ emoji clusters = likely not news)
+        # Check for excessive emojis (3+ emoji clusters = likely not news)
         emoji_pattern = re.compile(
             "["
             "\U0001F600-\U0001F64F"  # emoticons
@@ -182,13 +284,13 @@ class NewsContentClassifier:
             "]+", flags=re.UNICODE
         )
         emojis = emoji_pattern.findall(text_lower)
-        if len(emojis) > 5:  # Raised threshold
-            score += 0.25
-        
-        # Check for excessive hashtags (8+ = likely not news)
-        hashtag_count = len(re.findall(r'#\w+', text_lower))
-        if hashtag_count > 8:
+        if len(emojis) > 3:
             score += 0.2
+        
+        # Check for excessive hashtags (5+ = likely not news)
+        hashtag_count = len(re.findall(r'#\w+', text_lower))
+        if hashtag_count > 5:
+            score += 0.15
         
         # Very short text with no substance
         words = text_lower.split()
@@ -203,7 +305,7 @@ class NewsContentClassifier:
             return "personal_photo"
         elif any(kw in text_lower for kw in ['meme', 'funny', 'joke', 'lol', 'lmao']):
             return "meme_entertainment"
-        elif any(kw in text_lower for kw in ['buy now', 'order', 'discount', 'sale', 'offer']):
+        elif any(kw in text_lower for kw in ['buy now', 'order', 'discount', 'sale', 'offer', 'add to cart']):
             return "advertisement"
         elif any(kw in text_lower for kw in ['recipe', 'delicious', 'yummy', 'cooking']):
             return "food_lifestyle"
@@ -211,6 +313,10 @@ class NewsContentClassifier:
             return "motivational_quote"
         elif any(kw in text_lower for kw in ['good morning', 'good night', 'birthday']):
             return "greeting_social"
+        elif any(kw in text_lower for kw in ['photography', 'portfolio', 'gallery', 'photoshoot', 'photographer']):
+            return "photography_portfolio"
+        elif any(kw in text_lower for kw in ['home', 'about us', 'contact', 'login', 'sign up', 'menu', 'settings']):
+            return "ui_elements"
         else:
             return "non_news_content"
 
@@ -271,6 +377,10 @@ class NLPService:
             "greeting_social": "This appears to be a social greeting or personal message, not news content. Please upload news articles or claims to verify.",
             "non_news_content": "This doesn't appear to be news or a verifiable claim. Please upload news articles, news screenshots, or specific claims to fact-check.",
             "insufficient_content": "The content is too short to analyze. Please upload content with more text or a complete news article.",
+            "incoherent_content": "The extracted text doesn't appear to be coherent news content. It may be random words, UI elements, or image labels. Please upload actual news articles or claims.",
+            "ui_elements": "This appears to be a website interface, menu, or app screenshot rather than news content. Please upload news articles or claims to verify.",
+            "photography_portfolio": "This appears to be a photography website or portfolio, not news content. Please upload news articles or claims to verify.",
+            "photo_no_text": "This appears to be a photograph without news text. Please upload news screenshots or articles to verify.",
             "news_content": "News content detected. Proceeding with fact-checking.",
             "possible_news": "Content may contain news-related information. Proceeding with analysis."
         }
@@ -279,7 +389,7 @@ class NLPService:
             "is_news": is_news,
             "content_type": content_type,
             "confidence": confidence,
-            "message": messages.get(content_type, "Unable to classify content type.")
+            "message": messages.get(content_type, "Unable to classify content type. Please try with different content.")
         }
     
     async def extract_claims(self, text: str) -> List[Dict]:
