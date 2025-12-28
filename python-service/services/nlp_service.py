@@ -12,61 +12,74 @@ class NewsContentClassifier:
     """
     Classifier to determine if content is actual news/claims or non-news content.
     Uses keyword analysis, structure patterns, and entity detection.
+    IMPORTANT: This classifier is intentionally LENIENT - we prefer to fact-check
+    content that might not be news rather than reject actual news.
     """
     
     def __init__(self):
-        # News-related keywords and patterns
+        # News-related keywords and patterns (expanded list)
         self.news_keywords = [
-            # English
+            # English - common news words
             'reported', 'announced', 'according to', 'officials', 'government',
             'police', 'minister', 'president', 'election', 'breaking', 'update',
             'statement', 'investigation', 'sources', 'confirmed', 'denied',
             'claims', 'alleged', 'incident', 'protest', 'accident', 'court',
             'verdict', 'arrested', 'released', 'spokesperson', 'authority',
             'crisis', 'emergency', 'parliament', 'congress', 'senate',
+            'news', 'report', 'today', 'yesterday', 'says', 'said',
+            'death', 'killed', 'injured', 'attack', 'war', 'military',
+            'economy', 'market', 'stock', 'price', 'inflation', 'tax',
+            'health', 'covid', 'virus', 'vaccine', 'hospital', 'doctor',
+            'school', 'university', 'education', 'students', 'teacher',
+            'india', 'china', 'usa', 'america', 'russia', 'pakistan',
+            'modi', 'trump', 'biden', 'putin', 'leader', 'pm', 'cm',
             # Hindi
             'समाचार', 'रिपोर्ट', 'घोषणा', 'सरकार', 'पुलिस', 'मंत्री', 'चुनाव',
+            'खबर', 'आज', 'कल', 'बताया', 'कहा', 'मोदी', 'भारत',
             # Spanish  
-            'informó', 'anunció', 'gobierno', 'policía', 'elección',
+            'informó', 'anunció', 'gobierno', 'policía', 'elección', 'noticia',
             # Common news source references
-            'reuters', 'ap news', 'bbc', 'cnn', 'times', 'post', 'guardian'
+            'reuters', 'ap news', 'bbc', 'cnn', 'times', 'post', 'guardian',
+            'ndtv', 'zee', 'aaj tak', 'india today', 'hindustan', 'dainik'
         ]
         
         # Patterns indicating news structure
         self.news_patterns = [
-            r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # Dates
-            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',  # Day names
+            r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # Dates like 12/28/2025
+            r'\b\d{4}\b',  # Years like 2025
+            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',
             r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\b',
-            r'"\s*[^"]{10,}\s*"',  # Quoted statements
-            r'\b\d+\s*(percent|%|million|billion|thousand|crore|lakh)\b',  # Statistics
-            r'\b(said|stated|told|announced|reported|claimed)\b',  # Attribution verbs
+            r'"\s*[^"]{5,}\s*"',  # Quoted statements (shorter quotes too)
+            r'\b\d+\s*(percent|%|million|billion|thousand|crore|lakh|rupee|dollar)\b',
+            r'\b(said|stated|told|announced|reported|claimed|added|mentioned)\b',
+            r'\b(according to|sources say|officials said)\b',
+            r'\b(breaking|exclusive|just in|update|alert)\b',
+            r'@\w+',  # Twitter/social media handles (news often has these)
         ]
         
-        # Non-news content indicators
+        # Non-news content indicators - ONLY STRONG INDICATORS
+        # We want to be very careful not to reject actual news
         self.non_news_indicators = [
-            # Personal/casual content
-            'selfie', 'my photo', 'me and', 'good morning', 'good night',
-            'happy birthday', 'love you', 'miss you', 'throwback',
-            # Memes/entertainment
-            'lol', 'lmao', 'rofl', 'haha', 'funny', 'meme', 'joke',
-            # Commercial content
-            'buy now', 'order now', 'limited offer', 'discount', 'sale',
-            'click here', 'subscribe', 'follow us', 'dm for', 'shop now',
-            # Food/lifestyle
-            'recipe', 'delicious', 'yummy', 'homemade', 'cooking',
-            # Inspirational/quotes
-            'motivational', 'inspirational', 'quote of the day', 'life lessons',
-            # Social media
-            'follow for follow', 'like for like', 'share if you agree',
+            # Personal/casual content - STRONG indicators only
+            'selfie', 'my photo', 'pic of me', 'thats me',
+            # Memes/entertainment - STRONG indicators
+            'lmao', 'rofl', 'this meme', 'funny meme',
+            # Commercial content - STRONG indicators
+            'buy now', 'order now', 'limited offer', 'shop now', 'dm to order',
+            # Food/lifestyle - STRONG indicators  
+            'my recipe', 'homemade recipe', 'cooking tutorial',
+            # Greetings - STRONG indicators
+            'good morning everyone', 'good night everyone', 'happy birthday to',
         ]
         
-        # Minimum thresholds
-        self.min_word_count = 15  # Minimum words for news
-        self.min_entity_count = 1  # At least one named entity
+        # Minimum thresholds - VERY LENIENT
+        self.min_word_count = 10  # Lowered from 15
     
     def classify_content(self, text: str, entities: List[Dict] = None) -> Tuple[bool, str, float]:
         """
         Classify if content is news/verifiable claim or non-news content.
+        IMPORTANT: We are LENIENT - prefer to analyze content rather than reject it.
+        Only reject if we're very confident it's not news.
         
         Returns:
             Tuple of (is_news, content_type, confidence)
@@ -81,24 +94,35 @@ class NewsContentClassifier:
         words = text.split()
         word_count = len(words)
         
-        # Check for non-news indicators first
+        # LENIENT APPROACH: If text has 20+ words, assume it's worth analyzing
+        # unless there are STRONG non-news indicators
+        
+        # First check for STRONG non-news indicators
         non_news_score = self._calculate_non_news_score(text_lower)
-        if non_news_score > 0.6:
+        
+        # Only reject if VERY confident it's non-news (score > 0.7)
+        if non_news_score > 0.7:
             content_type = self._identify_non_news_type(text_lower)
             return False, content_type, non_news_score
         
-        # Check for news indicators
+        # If we have substantial text (20+ words), treat as news
+        if word_count >= 20:
+            return True, "news_content", 0.7
+        
+        # For shorter text, check news indicators
         news_score = self._calculate_news_score(text_lower, entities or [], word_count)
         
-        # Decision logic
-        if news_score >= 0.4:
-            return True, "news_content", news_score
-        elif news_score >= 0.25:
-            return True, "possible_news", news_score
-        elif word_count < self.min_word_count:
-            return False, "insufficient_content", 0.7
+        # LENIENT thresholds
+        if news_score >= 0.15:  # Very low threshold
+            return True, "news_content", max(0.5, news_score)
+        elif word_count >= 10:
+            # Even with low news score, 10+ words is worth analyzing
+            return True, "possible_news", 0.4
+        elif word_count < 10:
+            return False, "insufficient_content", 0.6
         else:
-            return False, "non_news_content", 0.6
+            # Default to treating as news - better to analyze than reject
+            return True, "possible_news", 0.4
     
     def _calculate_news_score(self, text_lower: str, entities: List[Dict], word_count: int) -> float:
         """Calculate how likely this is news content"""
@@ -131,14 +155,22 @@ class NewsContentClassifier:
         return min(1.0, score)
     
     def _calculate_non_news_score(self, text_lower: str) -> float:
-        """Calculate how likely this is non-news content"""
+        """
+        Calculate how likely this is non-news content.
+        CONSERVATIVE: Only give high score for STRONG indicators.
+        """
         score = 0.0
         
-        # Check for non-news indicators
+        # Check for STRONG non-news indicators only
         indicator_matches = sum(1 for ind in self.non_news_indicators if ind in text_lower)
-        score += min(0.5, indicator_matches * 0.15)
         
-        # Check for excessive emojis (common in non-news)
+        # Need at least 2 strong indicators to consider as non-news
+        if indicator_matches >= 2:
+            score += min(0.5, indicator_matches * 0.2)
+        elif indicator_matches == 1:
+            score += 0.15
+        
+        # Check for excessive emojis (5+ emoji clusters = likely not news)
         emoji_pattern = re.compile(
             "["
             "\U0001F600-\U0001F64F"  # emoticons
@@ -150,17 +182,18 @@ class NewsContentClassifier:
             "]+", flags=re.UNICODE
         )
         emojis = emoji_pattern.findall(text_lower)
-        if len(emojis) > 3:
-            score += 0.2
+        if len(emojis) > 5:  # Raised threshold
+            score += 0.25
         
-        # Check for excessive hashtags
+        # Check for excessive hashtags (8+ = likely not news)
         hashtag_count = len(re.findall(r'#\w+', text_lower))
-        if hashtag_count > 5:
-            score += 0.15
-        
-        # Very short text is likely not news
-        if len(text_lower.split()) < 10:
+        if hashtag_count > 8:
             score += 0.2
+        
+        # Very short text with no substance
+        words = text_lower.split()
+        if len(words) < 5:
+            score += 0.3
         
         return min(1.0, score)
     
