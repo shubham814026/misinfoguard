@@ -53,6 +53,21 @@ router.post('/image', async (req, res) => {
         
         const analysisResult = response.data;
         
+        // Check if content is NOT news - return without fact-checking
+        if (analysisResult.is_news_content === false) {
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
+            return res.json({
+                success: true,
+                isNewsContent: false,
+                contentType: analysisResult.content_type,
+                message: analysisResult.message,
+                analysis: analysisResult,
+                factCheck: []
+            });
+        }
+        
         // If analysis successful and claims found, fact-check them
         if (analysisResult.success && analysisResult.claims && analysisResult.claims.length > 0) {
             const factCheckResponse = await axios.post(
@@ -147,6 +162,21 @@ router.post('/text', async (req, res) => {
         );
         
         const analysisResult = analysisResponse.data;
+        
+        // Check if content is NOT news - return without fact-checking
+        if (analysisResult.is_news_content === false) {
+            // Increment analysis count on success
+            incrementAnalysisCount();
+            
+            return res.json({
+                success: true,
+                isNewsContent: false,
+                contentType: analysisResult.content_type,
+                message: analysisResult.message,
+                analysis: analysisResult,
+                factCheck: []
+            });
+        }
         
         // Fact-check claims
         if (analysisResult.success && analysisResult.claims && analysisResult.claims.length > 0) {

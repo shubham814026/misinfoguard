@@ -353,7 +353,113 @@ const LoadingSpinner = () => (
 );
 
 const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
-  const { factCheck = [] } = results;
+  const { factCheck = [], isNewsContent, contentType, message: notNewsMessage } = results;
+
+  // Check if content is not news
+  if (isNewsContent === false) {
+    return (
+      <div className="space-y-6">
+        {/* Not News Content Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-blue-50 border-blue-200 border-2 rounded-2xl p-6"
+        >
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-100 rounded-full p-3 flex-shrink-0">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-blue-700 mb-1">
+                Not News Content
+              </h2>
+              <div className="text-slate-600 mb-3">
+                Content Type: <span className="font-semibold capitalize">{contentType?.replace(/_/g, ' ') || 'Unknown'}</span>
+              </div>
+              <p className="text-slate-700 leading-relaxed">
+                {notNewsMessage || "This doesn't appear to be news or a verifiable claim."}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* What to Upload Instead */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card p-6"
+        >
+          <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">
+            What You Can Verify
+          </h3>
+          <ul className="space-y-3 text-slate-700">
+            <li className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-verified-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Screenshots of news articles or headlines</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-verified-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>WhatsApp forwards claiming to be news</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-verified-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Social media posts making claims or sharing news</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-verified-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Text containing specific factual claims</span>
+            </li>
+          </ul>
+        </motion.div>
+
+        {/* Extracted Text if available */}
+        {results.analysis?.extracted_text && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="card p-6"
+          >
+            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-2">
+              Extracted Text
+            </h3>
+            <p className="text-slate-700 whitespace-pre-wrap text-sm">
+              {results.analysis.extracted_text}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Action Button */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="flex flex-col sm:flex-row gap-3 pt-4"
+        >
+          <button
+            onClick={onReset}
+            className="flex-1 px-6 py-3 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Try Different Content
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Determine overall verdict
   const getOverallVerdict = () => {

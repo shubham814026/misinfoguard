@@ -1,11 +1,185 @@
 import spacy
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import logging
 from langdetect import detect
 from textblob import TextBlob
 
 logger = logging.getLogger(__name__)
+
+
+class NewsContentClassifier:
+    """
+    Classifier to determine if content is actual news/claims or non-news content.
+    Uses keyword analysis, structure patterns, and entity detection.
+    """
+    
+    def __init__(self):
+        # News-related keywords and patterns
+        self.news_keywords = [
+            # English
+            'reported', 'announced', 'according to', 'officials', 'government',
+            'police', 'minister', 'president', 'election', 'breaking', 'update',
+            'statement', 'investigation', 'sources', 'confirmed', 'denied',
+            'claims', 'alleged', 'incident', 'protest', 'accident', 'court',
+            'verdict', 'arrested', 'released', 'spokesperson', 'authority',
+            'crisis', 'emergency', 'parliament', 'congress', 'senate',
+            # Hindi
+            'समाचार', 'रिपोर्ट', 'घोषणा', 'सरकार', 'पुलिस', 'मंत्री', 'चुनाव',
+            # Spanish  
+            'informó', 'anunció', 'gobierno', 'policía', 'elección',
+            # Common news source references
+            'reuters', 'ap news', 'bbc', 'cnn', 'times', 'post', 'guardian'
+        ]
+        
+        # Patterns indicating news structure
+        self.news_patterns = [
+            r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # Dates
+            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',  # Day names
+            r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\b',
+            r'"\s*[^"]{10,}\s*"',  # Quoted statements
+            r'\b\d+\s*(percent|%|million|billion|thousand|crore|lakh)\b',  # Statistics
+            r'\b(said|stated|told|announced|reported|claimed)\b',  # Attribution verbs
+        ]
+        
+        # Non-news content indicators
+        self.non_news_indicators = [
+            # Personal/casual content
+            'selfie', 'my photo', 'me and', 'good morning', 'good night',
+            'happy birthday', 'love you', 'miss you', 'throwback',
+            # Memes/entertainment
+            'lol', 'lmao', 'rofl', 'haha', 'funny', 'meme', 'joke',
+            # Commercial content
+            'buy now', 'order now', 'limited offer', 'discount', 'sale',
+            'click here', 'subscribe', 'follow us', 'dm for', 'shop now',
+            # Food/lifestyle
+            'recipe', 'delicious', 'yummy', 'homemade', 'cooking',
+            # Inspirational/quotes
+            'motivational', 'inspirational', 'quote of the day', 'life lessons',
+            # Social media
+            'follow for follow', 'like for like', 'share if you agree',
+        ]
+        
+        # Minimum thresholds
+        self.min_word_count = 15  # Minimum words for news
+        self.min_entity_count = 1  # At least one named entity
+    
+    def classify_content(self, text: str, entities: List[Dict] = None) -> Tuple[bool, str, float]:
+        """
+        Classify if content is news/verifiable claim or non-news content.
+        
+        Returns:
+            Tuple of (is_news, content_type, confidence)
+            - is_news: True if content is news/verifiable claim
+            - content_type: Description of content type
+            - confidence: Confidence score 0-1
+        """
+        if not text or len(text.strip()) < 10:
+            return False, "empty_content", 0.95
+        
+        text_lower = text.lower()
+        words = text.split()
+        word_count = len(words)
+        
+        # Check for non-news indicators first
+        non_news_score = self._calculate_non_news_score(text_lower)
+        if non_news_score > 0.6:
+            content_type = self._identify_non_news_type(text_lower)
+            return False, content_type, non_news_score
+        
+        # Check for news indicators
+        news_score = self._calculate_news_score(text_lower, entities or [], word_count)
+        
+        # Decision logic
+        if news_score >= 0.4:
+            return True, "news_content", news_score
+        elif news_score >= 0.25:
+            return True, "possible_news", news_score
+        elif word_count < self.min_word_count:
+            return False, "insufficient_content", 0.7
+        else:
+            return False, "non_news_content", 0.6
+    
+    def _calculate_news_score(self, text_lower: str, entities: List[Dict], word_count: int) -> float:
+        """Calculate how likely this is news content"""
+        score = 0.0
+        
+        # Check for news keywords
+        keyword_matches = sum(1 for kw in self.news_keywords if kw in text_lower)
+        score += min(0.3, keyword_matches * 0.05)
+        
+        # Check for news patterns
+        pattern_matches = sum(1 for pattern in self.news_patterns 
+                             if re.search(pattern, text_lower, re.IGNORECASE))
+        score += min(0.3, pattern_matches * 0.06)
+        
+        # Check for named entities (PERSON, ORG, GPE, DATE, EVENT)
+        news_entities = [e for e in entities 
+                        if e.get('type') in ['PERSON', 'ORG', 'GPE', 'DATE', 'EVENT', 'LOC']]
+        score += min(0.25, len(news_entities) * 0.05)
+        
+        # Word count factor
+        if word_count >= 30:
+            score += 0.1
+        elif word_count >= 20:
+            score += 0.05
+        
+        # Check for quoted content (indicates sources/statements)
+        quotes = re.findall(r'"[^"]{10,}"', text_lower)
+        score += min(0.1, len(quotes) * 0.05)
+        
+        return min(1.0, score)
+    
+    def _calculate_non_news_score(self, text_lower: str) -> float:
+        """Calculate how likely this is non-news content"""
+        score = 0.0
+        
+        # Check for non-news indicators
+        indicator_matches = sum(1 for ind in self.non_news_indicators if ind in text_lower)
+        score += min(0.5, indicator_matches * 0.15)
+        
+        # Check for excessive emojis (common in non-news)
+        emoji_pattern = re.compile(
+            "["
+            "\U0001F600-\U0001F64F"  # emoticons
+            "\U0001F300-\U0001F5FF"  # symbols & pictographs
+            "\U0001F680-\U0001F6FF"  # transport & map symbols
+            "\U0001F1E0-\U0001F1FF"  # flags
+            "\U00002702-\U000027B0"
+            "\U000024C2-\U0001F251"
+            "]+", flags=re.UNICODE
+        )
+        emojis = emoji_pattern.findall(text_lower)
+        if len(emojis) > 3:
+            score += 0.2
+        
+        # Check for excessive hashtags
+        hashtag_count = len(re.findall(r'#\w+', text_lower))
+        if hashtag_count > 5:
+            score += 0.15
+        
+        # Very short text is likely not news
+        if len(text_lower.split()) < 10:
+            score += 0.2
+        
+        return min(1.0, score)
+    
+    def _identify_non_news_type(self, text_lower: str) -> str:
+        """Identify the specific type of non-news content"""
+        if any(kw in text_lower for kw in ['selfie', 'my photo', 'me and', 'pic of me']):
+            return "personal_photo"
+        elif any(kw in text_lower for kw in ['meme', 'funny', 'joke', 'lol', 'lmao']):
+            return "meme_entertainment"
+        elif any(kw in text_lower for kw in ['buy now', 'order', 'discount', 'sale', 'offer']):
+            return "advertisement"
+        elif any(kw in text_lower for kw in ['recipe', 'delicious', 'yummy', 'cooking']):
+            return "food_lifestyle"
+        elif any(kw in text_lower for kw in ['motivational', 'inspirational', 'quote']):
+            return "motivational_quote"
+        elif any(kw in text_lower for kw in ['good morning', 'good night', 'birthday']):
+            return "greeting_social"
+        else:
+            return "non_news_content"
 
 
 class NLPService:
@@ -36,9 +210,44 @@ class NLPService:
                     )
             
             self.supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ru', 'zh', 'ja', 'ar', 'hi']
+            
+            # Initialize content classifier
+            self.content_classifier = NewsContentClassifier()
+            
         except Exception as e:
             logger.error(f"Failed to load spaCy model: {str(e)}")
             raise
+    
+    def classify_content(self, text: str, entities: List[Dict] = None) -> Dict:
+        """
+        Classify if content is news/verifiable claim or non-news content.
+        
+        Returns:
+            Dict with is_news, content_type, confidence, and message
+        """
+        is_news, content_type, confidence = self.content_classifier.classify_content(text, entities)
+        
+        # Generate user-friendly message based on content type
+        messages = {
+            "empty_content": "The image doesn't contain readable text. Please upload an image with news or text content.",
+            "personal_photo": "This appears to be a personal photo, not news content. Please upload news articles, screenshots of news, or text claims to verify.",
+            "meme_entertainment": "This appears to be a meme or entertainment content, not a news article. Please upload actual news content for fact-checking.",
+            "advertisement": "This appears to be an advertisement or promotional content, not news. Please upload news articles or claims to verify.",
+            "food_lifestyle": "This appears to be food or lifestyle content, not news. Please upload news articles or claims to verify.",
+            "motivational_quote": "This appears to be a motivational quote or inspirational content, not verifiable news. Please upload news articles or claims to verify.",
+            "greeting_social": "This appears to be a social greeting or personal message, not news content. Please upload news articles or claims to verify.",
+            "non_news_content": "This doesn't appear to be news or a verifiable claim. Please upload news articles, news screenshots, or specific claims to fact-check.",
+            "insufficient_content": "The content is too short to analyze. Please upload content with more text or a complete news article.",
+            "news_content": "News content detected. Proceeding with fact-checking.",
+            "possible_news": "Content may contain news-related information. Proceeding with analysis."
+        }
+        
+        return {
+            "is_news": is_news,
+            "content_type": content_type,
+            "confidence": confidence,
+            "message": messages.get(content_type, "Unable to classify content type.")
+        }
     
     async def extract_claims(self, text: str) -> List[Dict]:
         """

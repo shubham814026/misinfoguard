@@ -116,6 +116,23 @@ async def analyze_image(file: UploadFile = File(...)):
             extracted_text = ocr_result['text']
             news_items = ocr_result.get('news_items', [extracted_text])
             
+            # First, classify if this is actually news content
+            # Use the first news item for classification
+            classification = nlp_service.classify_content(extracted_text)
+            
+            # If not news content, return appropriate response
+            if not classification['is_news']:
+                logger.info(f"Content classified as non-news: {classification['content_type']}")
+                return {
+                    "success": True,
+                    "is_news_content": False,
+                    "content_type": classification['content_type'],
+                    "message": classification['message'],
+                    "extracted_text": extracted_text,
+                    "claims": [],
+                    "classification_confidence": classification['confidence']
+                }
+            
             # Analyze each news item separately if multiple detected
             all_claims = []
             news_analyses = []
@@ -136,6 +153,7 @@ async def analyze_image(file: UploadFile = File(...)):
             # Build response
             response = {
                 "success": True,
+                "is_news_content": True,
                 "extracted_text": extracted_text,
                 "total_claims": len(all_claims)
             }
@@ -183,11 +201,28 @@ async def analyze_text(data: dict):
                 detail="Content rejected: Inappropriate or sensitive material detected"
             )
         
+        # Classify if this is news content
+        classification = nlp_service.classify_content(text)
+        
+        # If not news content, return appropriate response
+        if not classification['is_news']:
+            logger.info(f"Text classified as non-news: {classification['content_type']}")
+            return {
+                "success": True,
+                "is_news_content": False,
+                "content_type": classification['content_type'],
+                "message": classification['message'],
+                "claims": [],
+                "classification_confidence": classification['confidence'],
+                "language": nlp_service.detect_language(text)
+            }
+        
         # Extract claims using NLP
         claims = await nlp_service.extract_claims(text)
         
         return {
             "success": True,
+            "is_news_content": True,
             "claims": claims,
             "language": nlp_service.detect_language(text)
         }
