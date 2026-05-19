@@ -24,17 +24,19 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download spaCy multilingual model for 100+ language support
-# Using direct pip install for better reliability in Docker
 RUN pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.7.0/xx_ent_wiki_sm-3.7.0-py3-none-any.whl
 
 # Copy application files
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads directory and set ownership to non-root user
+RUN useradd -m -u 1001 appuser && mkdir -p uploads && chown -R appuser:appuser /app
+
+# Run as non-root user for security
+USER appuser
 
 # Expose port
 EXPOSE 8000
 
-# Start server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start server (--reload removed: it's a dev-only flag, not suitable for containers)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
