@@ -34,36 +34,40 @@ MisinfoGuard/
 ### Tech Stack
 
 **Frontend:**
-- React 18
-- Tailwind CSS (Brown crypto theme)
-- Framer Motion (Advanced animations)
-- React Router, Axios, React Dropzone
+- React 18.2
+- Tailwind CSS 3.3 (PostCSS + Autoprefixer)
+- Framer Motion 10 (Advanced animations)
+- React Router DOM 6, Axios 1.6
+- React Dropzone 14, React Icons 4, React Hot Toast 2
 
 **Backend:**
-- Node.js + Express
-- Multer (File uploads)
-- Axios (Service communication)
-- Helmet, CORS, Rate limiting
+- Node.js + Express 4.18
+- Multer 1.4 (File uploads), Form-Data 4
+- Axios 1.6 (Service communication)
+- Helmet 7, CORS 2.8, express-rate-limit 7
+- Compression 1.7, Morgan 1.10 (HTTP logging)
+- Mongoose 8 (ODM), dotenv 16
+- Nodemon 3 (Dev)
 
-**Python Service:**
-- FastAPI + Uvicorn
-- Tesseract OCR (Multilingual)
-- spaCy NLP (xx_ent_wiki_sm multilingual model)
-- Google Search API
-- Google Fact Check API
-- News Content Classifier (ML-based)
-- OpenCV, Pillow, PyTesseract
-- LangDetect, TextBlob
+**Python AI Service:**
+- FastAPI 0.104 + Uvicorn 0.24
+- Tesseract OCR via PyTesseract 0.3.10 (Multilingual)
+- spaCy 3.7 NLP (Multilingual entity & claim extraction)
+- Google Custom Search API + Google Fact Check API
+- OpenCV (headless) 4.8, Pillow 10, NumPy 1.26
+- pdf2image 1.16 (PDF support)
+- aiohttp 3.9 (Async HTTP for Google API calls)
+- LangDetect 1.0, TextBlob 0.17
 
 **Database:**
-- MongoDB (Statistics & Analytics)
-- Mongoose ODM
+- MongoDB 7 (Statistics & Analytics)
+- Mongoose 8 ODM
 
 **Infrastructure:**
-- Docker & Docker Compose
-- Multi-stage builds
-- Health checks
-- Volume persistence
+- Docker & Docker Compose (multi-container orchestration)
+- Multi-stage builds with health checks
+- Named volume persistence (`mongodb_data`, `uploads`)
+- Isolated bridge network (`misinfoguard-network`)
 
 ## 🚀 Quick Start
 
