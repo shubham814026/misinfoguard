@@ -114,14 +114,6 @@
 }
 ```
 
-**Error Response:**
-```json
-{
-  "success": false,
-  "error": "Content rejected: Inappropriate or sensitive material detected"
-}
-```
-
 ---
 
 ### 4. Analyze Text
@@ -357,21 +349,6 @@
 - **Response Header:** `X-RateLimit-Remaining`
 
 ---
-
-## Content Safety
-
-The system automatically rejects:
-- NSFW/inappropriate images
-- Offensive text content
-- Content with excessive profanity
-
-**Rejection Response:**
-```json
-{
-  "success": false,
-  "error": "Content rejected: Inappropriate or sensitive material detected"
-}
-```
 
 ---
 

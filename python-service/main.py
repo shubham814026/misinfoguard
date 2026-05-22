@@ -87,13 +87,7 @@ async def analyze_image(file: UploadFile = File(...)):
         file_path = await file_handler.save_upload(file)
         
         try:
-            # Check for inappropriate content
-            if content_filter.is_nsfw(file_path):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Content rejected: Inappropriate or sensitive material detected"
-                )
-            
+
             # STEP 1: Classify image type BEFORE OCR
             # This detects photos (animals, people, objects) vs documents/screenshots
             image_classification = image_classifier.classify_image(file_path)
@@ -233,13 +227,7 @@ async def analyze_text(data: dict):
         if not text or len(text.strip()) < 10:
             raise HTTPException(status_code=400, detail="Text is too short or empty")
         
-        # Check for inappropriate content
-        if content_filter.contains_inappropriate_text(text):
-            raise HTTPException(
-                status_code=400,
-                detail="Content rejected: Inappropriate or sensitive material detected"
-            )
-        
+
         # Classify if this is news content
         classification = nlp_service.classify_content(text)
         

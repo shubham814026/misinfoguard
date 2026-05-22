@@ -242,7 +242,6 @@ GOOGLE_CX_ID=your_cx
 PORT=8000
 DEBUG=True
 MAX_FILE_SIZE=10485760
-ENABLE_NSFW_FILTER=true
 ```
 
 **Frontend (`frontend/.env`):**
@@ -253,19 +252,18 @@ REACT_APP_API_URL=http://localhost:5000
 ## 🎯 How It Works
 
 1. **Upload/Input**: User uploads image or pastes text
-2. **Content Filter**: Checks for inappropriate content (rejects if found)
-3. **OCR Extraction**: Extracts text from images using Tesseract (multilingual)
-4. **News Content Classification**: 
+2. **OCR Extraction**: Extracts text from images using Tesseract (multilingual)
+3. **News Content Classification**: 
    - Detects if content is actual news or non-news
    - Identifies content types: news, memes, personal photos, ads, quotes
    - Only proceeds with fact-checking for news content
-5. **NLP Analysis**: Extracts factual claims using spaCy multilingual model
-6. **Fact Checking**:
+4. **NLP Analysis**: Extracts factual claims using spaCy multilingual model
+5. **Fact Checking**:
    - Searches Google Custom Search for evidence
    - Queries Google Fact Check API
    - Analyzes source credibility
    - Checks for misinformation red flags
-7. **Verdict Generation**:
+6. **Verdict Generation**:
    - Binary decision: LIKELY TRUE or LIKELY FALSE
    - Or "Not News Content" for non-news items
    - Confidence score (0-100%)
@@ -283,8 +281,6 @@ REACT_APP_API_URL=http://localhost:5000
 
 ## 🛡️ Security Features
 
-- **NSFW Filter**: Rejects inappropriate images
-- **Content Validation**: Filters offensive text
 - **Rate Limiting**: Prevents API abuse
 - **File Size Limits**: Max 10MB uploads
 - **Helmet Security**: HTTP headers protection
