@@ -176,21 +176,19 @@ const AnalyzePage = () => {
               <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-lg w-fit">
                 <button
                   onClick={() => setActiveTab('text')}
-                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
-                    activeTab === 'text'
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'text'
                       ? 'bg-white text-navy-900 shadow-sm'
                       : 'text-slate-600 hover:text-navy-900'
-                  }`}
+                    }`}
                 >
                   Paste Text
                 </button>
                 <button
                   onClick={() => setActiveTab('image')}
-                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
-                    activeTab === 'image'
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'image'
                       ? 'bg-white text-navy-900 shadow-sm'
                       : 'text-slate-600 hover:text-navy-900'
-                  }`}
+                    }`}
                 >
                   Upload File
                 </button>
@@ -247,13 +245,12 @@ const AnalyzePage = () => {
                 >
                   <div
                     {...getRootProps()}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                      isDragActive
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${isDragActive
                         ? 'border-navy-500 bg-navy-50'
                         : uploadedFile
-                        ? 'border-verified-500 bg-verified-50'
-                        : 'border-slate-300 hover:border-navy-400 hover:bg-slate-50'
-                    }`}
+                          ? 'border-verified-500 bg-verified-50'
+                          : 'border-slate-300 hover:border-navy-400 hover:bg-slate-50'
+                      }`}
                   >
                     <input {...getInputProps()} />
                     {uploadedFile ? (
@@ -331,8 +328,8 @@ const AnalyzePage = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <ResultsDisplay 
-                results={results} 
+              <ResultsDisplay
+                results={results}
                 onReset={resetAnalysis}
                 feedbackGiven={feedbackGiven}
                 onFeedback={submitFeedback}
@@ -364,7 +361,7 @@ const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
     const cardBg = isPhoto ? 'bg-purple-50' : 'bg-blue-50';
     const cardBorder = isPhoto ? 'border-purple-200' : 'border-blue-200';
     const titleColor = isPhoto ? 'text-purple-700' : 'text-blue-700';
-    
+
     // Get appropriate title
     const getTitle = () => {
       if (isPhoto) return 'Photo Detected - No News Content';
@@ -373,7 +370,7 @@ const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
       if (contentType === 'no_text_content') return 'No Readable Text Found';
       return 'Not News Content';
     };
-    
+
     // Get appropriate icon
     const getIcon = () => {
       if (isPhoto) {
@@ -500,7 +497,7 @@ const ResultsDisplay = ({ results, onReset, feedbackGiven, onFeedback }) => {
   // Determine overall verdict
   const getOverallVerdict = () => {
     if (factCheck.length === 0) return null;
-    
+
     const verdicts = factCheck.map(r => r.verdict);
     if (verdicts.every(v => v === 'LIKELY TRUE')) return 'real';
     if (verdicts.some(v => v === 'LIKELY FALSE')) return 'fake';
